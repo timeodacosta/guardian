@@ -316,7 +316,7 @@ function Footer() {
 // --- LANDING PAGE ---
 function LandingPage() {
     const handleLogin = () => {
-        window.location.href = 'http://localhost:3000/api/auth/login';
+        window.location.href = `${API_URL}/api/auth/login`;
     };
 
     return (
