@@ -2,8 +2,6 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, Colors, ActionRo
 const Pagination = require('../../utils/Pagination'); // Assure-toi que le chemin est bon
 const prisma = require('../../utils/prisma'); // Assure-toi que le chemin est bon
 
-const DASHBOARD_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('ban')
@@ -24,6 +22,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
     async execute(interaction) {
+        const DASHBOARD_URL = process.env.FRONTEND_URL || `https://bot-guardian.vercel.app/dashboard/${interaction.guild.id}`;
         const subcommand = interaction.options.getSubcommand();
 
         // --- BANNIR ---
