@@ -1,5 +1,6 @@
 import { X, Bot, ExternalLink } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { API_URL } from './config';
 
 function TranscriptModal({ channelId, onClose }) {
     const [messages, setMessages] = useState([]);
@@ -7,7 +8,7 @@ function TranscriptModal({ channelId, onClose }) {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        fetch(`http://localhost:3000/api/ticket-messages/${channelId}`)
+        fetch(`${API_URL}/api/ticket-messages/${channelId}`)
             .then(res => {
                 if (!res.ok) throw new Error("Impossible de charger les messages.");
                 return res.json();
