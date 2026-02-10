@@ -7,6 +7,7 @@ import {
     Gavel, Zap, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_URL } from './config';
 
 const styles = `
   :root {
