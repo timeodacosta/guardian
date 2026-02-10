@@ -1,0 +1,22 @@
+/* src/index.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- AJOUTE CECI --- */
+@layer utilities {
+
+  /* Cache la scrollbar pour Chrome, Safari et Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Cache la scrollbar pour IE, Edge et Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+}
