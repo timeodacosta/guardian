@@ -327,7 +327,6 @@ function LandingPage() {
 
             {/* AJOUT DU PATCH NOTE ICI */}
             <PatchNoteBanner />
-
             <BentoGrid />
             <Footer />
         </div>
