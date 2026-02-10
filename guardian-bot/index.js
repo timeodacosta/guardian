@@ -473,11 +473,13 @@ app.post('/api/bans/sync/:guildId', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-// '0.0.0.0' est important pour être accessible depuis l'extérieur sur AlwaysData
-app.listen(PORT, '0.0.0.0', () => { 
-    console.log(`🌐 API Dashboard démarrée sur le port ${PORT}`); 
+const IP = process.env.IP || '0.0.0.0';
+
+app.listen(PORT, IP, () => { 
+    console.log(`🌐 API Dashboard démarrée sur http://${IP}:${PORT}`); 
 });
 
+// --- LANCE LE BOT ---
 (async () => {
     client.login(process.env.DISCORD_TOKEN).then(() => {
         loadEvents(client);
