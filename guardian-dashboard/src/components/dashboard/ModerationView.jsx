@@ -150,7 +150,12 @@ export default function ModerationView({
                                 <div>
                                     <label className="text-[10px] font-bold text-neutral-500 uppercase mb-2 block">Expulsion (Kick) après</label>
                                     <div className="flex items-center gap-2">
-                                        <input type="number" min="0" value={warnConfig.autoKickCount} onChange={(e) => setWarnConfig({ ...warnConfig, autoKickCount: e.target.value })} className="clean-input w-20 p-2 rounded text-sm text-center" />
+                                        <input
+                                            type="number"
+                                            value={warnConfig.autoKickCount}
+                                            onChange={(e) => onConfigChange('autoKickCount', e.target.value)} // Utilise la nouvelle fonction
+                                            min="0"
+                                        />
                                         <span className="text-sm text-neutral-400">avertissements</span>
                                     </div>
                                     <p className="text-[10px] text-neutral-600 mt-1">Mettre 0 pour désactiver.</p>
@@ -158,7 +163,12 @@ export default function ModerationView({
                                 <div className="pt-4 border-t border-[#1f1f1f]">
                                     <label className="text-[10px] font-bold text-neutral-500 uppercase mb-2 block">Bannissement après</label>
                                     <div className="flex items-center gap-2">
-                                        <input type="number" min="0" value={warnConfig.autoBanCount} onChange={(e) => setWarnConfig({ ...warnConfig, autoBanCount: e.target.value })} className="clean-input w-20 p-2 rounded text-sm text-center" />
+                                        <input
+                                            type="number"
+                                            value={warnConfig.autoBanCount}
+                                            onChange={(e) => onConfigChange('autoBanCount', e.target.value)} // Utilise la nouvelle fonction
+                                            min="0"
+                                        />
                                         <span className="text-sm text-neutral-400">avertissements</span>
                                     </div>
                                     <p className="text-[10px] text-neutral-600 mt-1">Mettre 0 pour désactiver.</p>

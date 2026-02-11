@@ -129,13 +129,26 @@ app.get('/api/warn-config/:guildId', async (req, res) => {
 app.post('/api/warn-config/:guildId', async (req, res) => {
     try {
         const { dmUser, autoKickCount, autoBanCount, logChannelId } = req.body;
+
+        const kickVal = parseInt(autoKickCount);
+        const banVal = parseInt(autoBanCount);
+
+        if (kickVal > 0 && banVal > 0 && banVal <= kickVal) {
+            return res.status(400).json({ 
+                error: "Le nombre d'avertissements pour le Ban doit être supérieur à celui du Kick." 
+            });
+        }
+
         const config = await prisma.warnConfig.upsert({
             where: { guildId: req.params.guildId },
-            update: { dmUser, autoKickCount: parseInt(autoKickCount), autoBanCount: parseInt(autoBanCount), logChannelId },
-            create: { guildId: req.params.guildId, dmUser, autoKickCount: parseInt(autoKickCount), autoBanCount: parseInt(autoBanCount), logChannelId }
+            update: { dmUser, autoKickCount: kickVal, autoBanCount: banVal, logChannelId },
+            create: { guildId: req.params.guildId, dmUser, autoKickCount: kickVal, autoBanCount: banVal, logChannelId }
         });
         res.json(config);
-    } catch (e) { res.status(500).json({ error: "Erreur sauvegarde config warn" }); }
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ error: "Erreur sauvegarde config warn" }); 
+    }
 });
 
 // 3. SETTINGS & LIVE UPDATE

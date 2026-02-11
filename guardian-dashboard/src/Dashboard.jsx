@@ -188,6 +188,29 @@ function Dashboard({ user }) {
         } catch (error) { console.error("Erreur save module", error); }
     };
 
+    const handleWarnConfigChange = (key, value) => {
+        const newValue = parseInt(value) || 0;
+        const newConfig = { ...warnConfig, [key]: newValue };
+
+        // RÈGLE : Ban > Kick (si les deux sont actifs)
+        if (newConfig.autoBanCount > 0 && newConfig.autoKickCount > 0) {
+
+            // Cas 1 : On modifie le Kick, et il devient >= au Ban
+            if (key === 'autoKickCount' && newValue >= newConfig.autoBanCount) {
+                alert("L'auto-kick doit être inférieur à l'auto-ban !");
+                return; // On annule le changement
+            }
+
+            // Cas 2 : On modifie le Ban, et il devient <= au Kick
+            if (key === 'autoBanCount' && newValue <= newConfig.autoKickCount) {
+                alert("L'auto-ban doit être supérieur à l'auto-kick !");
+                return; // On annule le changement
+            }
+        }
+
+        // Si tout est bon, on met à jour
+        setWarnConfig(newConfig);
+    };
 
     const handleDeleteWarn = async (id) => { if (!window.confirm('Supprimer cet avertissement ?')) return; await fetch(`${API_URL}/api/warns/${id}`, { method: 'DELETE' }); setWarns(warns.filter(w => w.id !== id)); };
     const handleDeleteBan = async (id) => { if (!window.confirm('Révoquer ce bannissement ?')) return; await fetch(`${API_URL}/api/bans/${id}`, { method: 'DELETE' }); setBans(bans.filter(b => b.id !== id)); };
@@ -466,7 +489,12 @@ function Dashboard({ user }) {
                                 modView={modView} setModView={setModView} modSubTab={modSubTab}
                                 warns={warns} bans={bans} kicks={kicks}
                                 selectedUserWarns={selectedUserWarns} setSelectedUserWarns={setSelectedUserWarns}
-                                warnConfig={warnConfig} setWarnConfig={setWarnConfig}
+
+                                warnConfig={warnConfig}
+                                // 👇 On remplace setWarnConfig par notre fonction sécurisée ici (ou on ajoute une prop 'onConfigChange')
+                                setWarnConfig={setWarnConfig}
+                                onConfigChange={handleWarnConfigChange} // <--- AJOUTE CECI
+
                                 handleDeleteWarn={handleDeleteWarn} handleDeleteBan={handleDeleteBan}
                                 channels={channels}
                                 handleSyncBans={handleSyncBans}
