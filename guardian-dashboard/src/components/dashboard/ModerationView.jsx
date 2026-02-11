@@ -7,7 +7,7 @@ export default function ModerationView({
     warns, bans, kicks,
     selectedUserWarns, setSelectedUserWarns,
     warnConfig, setWarnConfig,
-    triggerSaveBar, handleDeleteWarn, handleDeleteBan, channels, handleSyncBans, guildName
+    triggerSaveBar, handleDeleteWarn, handleDeleteBan, channels, handleSyncBans, guildName, onConfigChange
 }) {
 
     // FONCTION HELPER POUR AFFICHER UNE GRILLE (WARNS ou BANS)
