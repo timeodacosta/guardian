@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Shield, ArrowRight, LayoutDashboard, Ticket, Menu, X, Lock, Zap, Command, ChevronRight, ArrowLeft, Sparkles } from 'lucide-react';
+import { Shield, ArrowRight, LayoutDashboard, Ticket, Menu, X, Lock, Zap, Command, ChevronRight, ArrowLeft, Sparkles, Ban } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './Dashboard';
 import Documentation from './Documentation'; // Import de la page de documentation
@@ -335,8 +335,6 @@ function LandingPage() {
 
 // --- SERVER LIST (MODIFIÉ POUR LA SYNCHRO) ---
 function ServerList({ user, onLogout }) {
-    // On utilise un état local 'guilds' au lieu d'utiliser directement 'user.guilds'
-    // Cela nous permet de mettre à jour la liste sans changer 'user'
     const [guilds, setGuilds] = useState(user.guilds);
     const [selectedGuild, setSelectedGuild] = useState(user.guilds[0]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -345,12 +343,11 @@ function ServerList({ user, onLogout }) {
     // --- SYNCHRONISATION AUTOMATIQUE ---
     useEffect(() => {
         const syncBotStatus = async () => {
-            try {
-                // On récupère juste les IDs pour demander à l'API
-                const guildIds = user.guilds.map(g => g.id);
+            if (user.guilds.length === 0) return; // Pas besoin de sync si 0 serveur
 
-                // Appel à l'API pour savoir où est le bot
-                const response = await fetch(`${API_URL}/api/sync-bot-status`, {
+            try {
+                const guildIds = user.guilds.map(g => g.id);
+                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/sync-bot-status`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ guildIds })
@@ -360,32 +357,29 @@ function ServerList({ user, onLogout }) {
                     const data = await response.json();
                     const botGuilds = data.botGuilds || [];
 
-                    // On met à jour l'état local 'guilds' avec les nouvelles infos
-                    setGuilds(currentGuilds =>
+                    setGuilds(currentGuilds => 
                         currentGuilds.map(g => ({
                             ...g,
                             botInGuild: botGuilds.includes(g.id)
                         }))
                     );
 
-                    // Si le serveur sélectionné a changé de statut, on le met à jour aussi
-                    setSelectedGuild(prev => ({
-                        ...prev,
-                        botInGuild: botGuilds.includes(prev.id)
-                    }));
+                    // Mise à jour de la sélection si nécessaire
+                    if (selectedGuild) {
+                        setSelectedGuild(prev => ({
+                            ...prev,
+                            botInGuild: botGuilds.includes(prev.id)
+                        }));
+                    }
                 }
             } catch (error) {
                 console.error("Erreur de synchronisation:", error);
             }
         };
 
-        // Lancer la synchro au chargement de la page
         syncBotStatus();
-
-        // Lancer la synchro quand l'utilisateur revient sur l'onglet (après avoir ajouté le bot)
         const onFocus = () => syncBotStatus();
         window.addEventListener('focus', onFocus);
-
         return () => window.removeEventListener('focus', onFocus);
     }, [user.guilds]);
 
@@ -400,8 +394,60 @@ function ServerList({ user, onLogout }) {
         }
     };
 
+    // --- NOUVEAU : ÉCRAN "PAS DE SERVEUR" ---
+    if (guilds.length === 0) {
+        return (
+            <div className="h-screen bg-black text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+                <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none"></div>
+                
+                <div className="relative z-10 max-w-md text-center space-y-6 bg-[#0a0a0a] border border-[#1f1f1f] p-8 rounded-2xl shadow-2xl">
+                    <div className="w-16 h-16 bg-[#111] rounded-full flex items-center justify-center mx-auto border border-[#222]">
+                        <Ban size={32} className="text-red-500" />
+                    </div>
+                    
+                    <div>
+                        <h2 className="text-2xl font-bold text-white mb-2">Aucun serveur détecté</h2>
+                        <p className="text-neutral-400 text-sm leading-relaxed">
+                            Pour utiliser Guardian, vous devez être <strong>Propriétaire</strong> ou avoir la permission <strong>Administrateur</strong> sur au moins un serveur Discord.
+                        </p>
+                    </div>
+
+                    <div className="bg-[#111] rounded-lg p-4 text-left border border-[#222]">
+                        <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-2">Solutions possibles :</h3>
+                        <ul className="space-y-2 text-sm text-neutral-300">
+                            <li className="flex items-start gap-2">
+                                <span className="text-emerald-500 mt-1">1.</span> Créez un nouveau serveur Discord.
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-emerald-500 mt-1">2.</span> Demandez les droits "Gérer le serveur" à un ami.
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-emerald-500 mt-1">3.</span> Rechargez cette page après modification.
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="flex gap-3 justify-center pt-2">
+                        <button onClick={() => window.location.reload()} className="px-5 py-2.5 rounded-xl border border-[#333] hover:bg-[#111] text-white text-sm font-bold transition-colors">
+                            Recharger
+                        </button>
+                        <button onClick={onLogout} className="px-5 py-2.5 rounded-xl bg-white text-black hover:bg-neutral-200 text-sm font-bold transition-colors flex items-center gap-2">
+                            Se déconnecter
+                        </button>
+                    </div>
+                </div>
+                
+                <div className="absolute bottom-6 text-neutral-600 text-xs font-mono">
+                    Compte connecté : {user.username}
+                </div>
+            </div>
+        );
+    }
+
+    // --- RENDU NORMAL (Si des serveurs existent) ---
     return (
         <div className="h-screen bg-black text-white font-sans flex overflow-hidden relative">
+            {/* ... Tout le code existant de la sidebar et du preview ... */}
             <div className="w-full md:w-[450px] flex flex-col border-r border-[#1f1f1f] bg-[#050505] z-20">
                 <div className="p-6 border-b border-[#1f1f1f]">
                     <div className="flex justify-between items-center mb-6">
