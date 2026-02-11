@@ -357,7 +357,7 @@ function ServerList({ user, onLogout }) {
                     const data = await response.json();
                     const botGuilds = data.botGuilds || [];
 
-                    setGuilds(currentGuilds => 
+                    setGuilds(currentGuilds =>
                         currentGuilds.map(g => ({
                             ...g,
                             botInGuild: botGuilds.includes(g.id)
@@ -399,12 +399,12 @@ function ServerList({ user, onLogout }) {
         return (
             <div className="h-screen bg-black text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
                 <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none"></div>
-                
+
                 <div className="relative z-10 max-w-md text-center space-y-6 bg-[#0a0a0a] border border-[#1f1f1f] p-8 rounded-2xl shadow-2xl">
                     <div className="w-16 h-16 bg-[#111] rounded-full flex items-center justify-center mx-auto border border-[#222]">
                         <Ban size={32} className="text-red-500" />
                     </div>
-                    
+
                     <div>
                         <h2 className="text-2xl font-bold text-white mb-2">Aucun serveur détecté</h2>
                         <p className="text-neutral-400 text-sm leading-relaxed">
@@ -428,15 +428,18 @@ function ServerList({ user, onLogout }) {
                     </div>
 
                     <div className="flex gap-3 justify-center pt-2">
-                        <button onClick={() => window.location.reload()} className="px-5 py-2.5 rounded-xl border border-[#333] hover:bg-[#111] text-white text-sm font-bold transition-colors">
-                            Recharger
+                        <button
+                            onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/login`}
+                            className="px-5 py-2.5 rounded-xl border border-[#333] hover:bg-[#111] text-white text-sm font-bold transition-colors"
+                        >
+                            Actualiser la liste
                         </button>
                         <button onClick={onLogout} className="px-5 py-2.5 rounded-xl bg-white text-black hover:bg-neutral-200 text-sm font-bold transition-colors flex items-center gap-2">
                             Se déconnecter
                         </button>
                     </div>
                 </div>
-                
+
                 <div className="absolute bottom-6 text-neutral-600 text-xs font-mono">
                     Compte connecté : {user.username}
                 </div>
