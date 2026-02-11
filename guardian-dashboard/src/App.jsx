@@ -429,7 +429,7 @@ function ServerList({ user, onLogout }) {
 
                     <div className="flex gap-3 justify-center pt-2">
                         <button
-                            onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/login`}
+                            onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'https://termiprotector.alwaysdata.net'}/api/auth/login`}
                             className="px-5 py-2.5 rounded-xl border border-[#333] hover:bg-[#111] text-white text-sm font-bold transition-colors"
                         >
                             Actualiser la liste
