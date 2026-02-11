@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, Colors, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const Pagination = require('../../utils/Pagination');
 const prisma = require('../../utils/prisma');
+const { checkAutoSanction } = require('../../utils/autoSanction'); // <--- IMPORT CRUCIAL
 
 // URL du dashboard
 const DASHBOARD_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -27,28 +28,47 @@ module.exports = {
     async execute(interaction) {
         const subcommand = interaction.options.getSubcommand();
 
-        // --- AJOUTER ---
+        // ====================================================
+        // ➕ SOUS-COMMANDE : AJOUTER
+        // ====================================================
         if (subcommand === 'ajouter') {
-            const target = interaction.options.getUser('membre');
+            const targetUser = interaction.options.getUser('membre');
             const reason = interaction.options.getString('raison');
-            if (target.id === interaction.user.id) return interaction.reply({ content: "❌ Auto-avertissement interdit.", ephemeral: true });
+            
+            if (targetUser.id === interaction.user.id) return interaction.reply({ content: "❌ Auto-avertissement interdit.", ephemeral: true });
+            if (targetUser.bot) return interaction.reply({ content: "❌ Impossible d'avertir un bot.", ephemeral: true });
 
             try {
+                // 1. Assurer que le serveur existe en BDD
                 await prisma.guild.upsert({ where: { id: interaction.guild.id }, update: {}, create: { id: interaction.guild.id, name: interaction.guild.name } });
-                const warn = await prisma.warn.create({ data: { guildId: interaction.guild.id, userId: target.id, userTag: target.tag, modId: interaction.user.id, modTag: interaction.user.tag, reason } });
+                
+                // 2. Créer le Warn
+                const warn = await prisma.warn.create({ 
+                    data: { 
+                        guildId: interaction.guild.id, 
+                        userId: targetUser.id, 
+                        userTag: targetUser.tag, 
+                        modId: interaction.user.id, 
+                        modTag: interaction.user.tag, 
+                        reason 
+                    } 
+                });
 
+                // 3. Récupérer la config pour les logs et DM
                 const config = await prisma.warnConfig.findUnique({ where: { guildId: interaction.guild.id } });
 
+                // A. Envoyer un MP au membre (si activé)
                 if (!config || config.dmUser) {
-                    await target.send({
+                    await targetUser.send({
                         embeds: [new EmbedBuilder()
                             .setTitle(`⚠️ Sanction : ${interaction.guild.name}`)
                             .setColor(Colors.Red)
                             .setDescription(`Vous avez reçu un avertissement.\n\n**Raison :** ${reason}`)
                             .setFooter({ text: "Veuillez respecter le règlement." })]
-                    }).catch(() => { });
+                    }).catch(() => { /* MP fermé, pas grave */ });
                 }
 
+                // B. Logs dans un salon (si configuré)
                 if (config?.logChannelId) {
                     const logChan = interaction.guild.channels.cache.get(config.logChannelId);
                     if (logChan) await logChan.send({
@@ -56,7 +76,7 @@ module.exports = {
                             .setTitle('🛡️ Log : Avertissement')
                             .setColor(Colors.Orange)
                             .addFields(
-                                { name: 'Membre', value: `${target.tag}`, inline: true },
+                                { name: 'Membre', value: `${targetUser.tag}`, inline: true },
                                 { name: 'Modérateur', value: `${interaction.user.tag}`, inline: true },
                                 { name: 'Raison', value: reason }
                             )
@@ -64,44 +84,65 @@ module.exports = {
                     });
                 }
 
-                const count = await prisma.warn.count({ where: { guildId: interaction.guild.id, userId: target.id } });
-                let msg = "";
-                if (config?.autoBanCount > 0 && count >= config.autoBanCount) {
-                    const m = await interaction.guild.members.fetch(target.id).catch(() => null);
-                    if (m?.bannable) { await m.ban({ reason: `Auto-Ban : ${count} warns.` }); msg = "\n⛔ **Membre banni automatiquement.**"; }
-                } else if (config?.autoKickCount > 0 && count >= config.autoKickCount) {
-                    const m = await interaction.guild.members.fetch(target.id).catch(() => null);
-                    if (m?.kickable) { await m.kick(`Auto-Kick : ${count} warns.`); msg = "\n👢 **Membre expulsé automatiquement.**"; }
+                // 4. VÉRIFICATION AUTO-SANCTION (Kick/Ban automatique)
+                // On récupère le membre complet pour pouvoir le kick/ban
+                const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
+                if (targetMember) {
+                    await checkAutoSanction(interaction.guild, targetMember, interaction.channel);
                 }
+
+                // 5. Réponse finale confirmant le warn
+                const count = await prisma.warn.count({ where: { guildId: interaction.guild.id, userId: targetUser.id } });
 
                 await interaction.reply({
                     embeds: [new EmbedBuilder()
                         .setTitle('⚠️ Sanction Appliquée')
                         .setColor(Colors.Yellow)
-                        .setDescription(`**Cible :** ${target}\n**Raison :** ${reason}\n\n**Historique :** Cet utilisateur possède désormais \`${count}\` avertissement(s).${msg}`)
+                        .setDescription(`**Cible :** ${targetUser}\n**Raison :** ${reason}\n\n**Historique :** Cet utilisateur possède désormais \`${count}\` avertissement(s).`)
                         .setFooter({ text: `ID du warn : ${warn.id}` })]
                 });
-            } catch (e) { interaction.reply({ content: "❌ Erreur BDD.", ephemeral: true }); }
+
+            } catch (e) { 
+                console.error(e);
+                interaction.reply({ content: "❌ Erreur base de données.", ephemeral: true }); 
+            }
         }
 
-        // --- RETIRER ---
+        // ====================================================
+        // ➖ SOUS-COMMANDE : RETIRER
+        // ====================================================
         else if (subcommand === 'retirer') {
             const warnId = interaction.options.getString('id');
             try {
                 const warn = await prisma.warn.findUnique({ where: { id: warnId } });
-                if (!warn || warn.guildId !== interaction.guild.id) return interaction.reply({ content: "❌ Warn introuvable.", ephemeral: true });
+                
+                if (!warn || warn.guildId !== interaction.guild.id) {
+                    return interaction.reply({ content: "❌ Warn introuvable ou n'appartient pas à ce serveur.", ephemeral: true });
+                }
+
                 await prisma.warn.delete({ where: { id: warnId } });
-                await interaction.reply({ embeds: [new EmbedBuilder().setColor(Colors.Green).setDescription(`✅ Avertissement **${warnId}** supprimé avec succès.`)] });
-            } catch (e) { interaction.reply({ content: "❌ Erreur suppression.", ephemeral: true }); }
+                
+                await interaction.reply({ 
+                    embeds: [new EmbedBuilder()
+                        .setColor(Colors.Green)
+                        .setDescription(`✅ Avertissement **${warnId}** supprimé avec succès.`)] 
+                });
+            } catch (e) { 
+                console.error(e);
+                interaction.reply({ content: "❌ Erreur lors de la suppression.", ephemeral: true }); 
+            }
         }
 
-        // --- LISTE (NOUVELLE PRÉSENTATION) ---
+        // ====================================================
+        // 📋 SOUS-COMMANDE : LISTE
+        // ====================================================
         else if (subcommand === 'liste') {
-            const target = interaction.options.getUser('membre');
+            const targetUser = interaction.options.getUser('membre');
 
             // CAS 1 : PAS DE MEMBRE -> DIRECTION DASHBOARD
-            if (!target) {
+            if (!targetUser) {
                 const count = await prisma.warn.count({ where: { guildId: interaction.guild.id } });
+                
                 const embed = new EmbedBuilder()
                     .setTitle('📋 Base de données des Sanctions')
                     .setColor(0x2b2d31)
@@ -118,19 +159,20 @@ module.exports = {
                 return interaction.reply({ embeds: [embed], components: [row] });
             }
 
-            // CAS 2 : MEMBRE SPÉCIFIÉ -> PAGINATION (MAX 5 + 1 DASHBOARD)
-            const totalCount = await prisma.warn.count({ where: { guildId: interaction.guild.id, userId: target.id } });
-            if (totalCount === 0) return interaction.reply({ content: `✅ Aucun avertissement pour **${target.tag}**.`, ephemeral: true });
+            // CAS 2 : MEMBRE SPÉCIFIÉ -> PAGINATION (MAX 5 + LIEN DASHBOARD)
+            const totalCount = await prisma.warn.count({ where: { guildId: interaction.guild.id, userId: targetUser.id } });
+            
+            if (totalCount === 0) return interaction.reply({ content: `✅ Aucun avertissement pour **${targetUser.tag}**.`, ephemeral: true });
 
             const userWarns = await prisma.warn.findMany({
-                where: { guildId: interaction.guild.id, userId: target.id },
+                where: { guildId: interaction.guild.id, userId: targetUser.id },
                 orderBy: { createdAt: 'desc' },
                 take: 5 // On ne prend que les 5 derniers
             });
 
             const pages = userWarns.map((w, i) => {
                 return new EmbedBuilder()
-                    .setAuthor({ name: `Dossier : ${target.username}`, iconURL: target.displayAvatarURL() })
+                    .setAuthor({ name: `Dossier : ${targetUser.username}`, iconURL: targetUser.displayAvatarURL() })
                     .setTitle(`Détail de l'avertissement #${totalCount - i}`)
                     .setColor(0xFFA500)
                     .addFields(
@@ -142,10 +184,10 @@ module.exports = {
                     .setFooter({ text: `Page ${i + 1} sur ${totalCount > 5 ? 6 : totalCount}` });
             });
 
-            // Ajout de la page 6 (Dashboard) si nécessaire
+            // Ajout de la page 6 (Lien Dashboard) si + de 5 warns
             if (totalCount > 5) {
                 const morePage = new EmbedBuilder()
-                    .setAuthor({ name: `Dossier : ${target.username}`, iconURL: target.displayAvatarURL() })
+                    .setAuthor({ name: `Dossier : ${targetUser.username}`, iconURL: targetUser.displayAvatarURL() })
                     .setTitle("Plus d'avertissements ?")
                     .setColor(0x2b2d31)
                     .setDescription(`Cet utilisateur possède **${totalCount}** avertissements.\n\nLes 5 plus récents sont affichés ici.\n\n**Veuillez vous rendre sur le Dashboard pour consulter l'historique complet.**`)

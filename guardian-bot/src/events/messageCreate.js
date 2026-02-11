@@ -1,18 +1,15 @@
 const { Events, PermissionFlagsBits, EmbedBuilder, Colors } = require('discord.js');
 const prisma = require('../utils/prisma');
+const { checkAutoSanction } = require('../utils/autoSanction'); // <--- IMPORT IMPORTANT
 
 // Map pour stocker les messages récents (Anti-Spam)
-// Structure : userId => { msgCount, lastMessage, timer }
 const spamMap = new Map();
 
 module.exports = {
     name: Events.MessageCreate,
     async execute(message, client) {
-        // 1. Ignorer les bots et les messages hors serveur
         if (message.author.bot || !message.guild) return;
 
-        // 2. Vérifier les permissions (Les admins bypass tout)
-        // Le ?. permet d'éviter un crash si message.member est null (ex: webhook)
         const isAdmin = message.member?.permissions.has(PermissionFlagsBits.Administrator);
 
         // --- CHARGEMENT DES CONFIGURATIONS ---
@@ -27,12 +24,10 @@ module.exports = {
         if (antiLinkConfig && antiLinkConfig.enabled) {
             const linkRegex = /(https?:\/\/|www\.|discord\.(gg|io|me|li)|discordapp\.com\/invite)/i;
 
-            if (linkRegex.test(message.content)) {
+            if (linkRegex.test(message.content) && !isAdmin) { // Ajout !isAdmin pour que les admins puissent poster des liens
                 try {
-                    // 1. Supprimer le message
                     await message.delete().catch(() => { });
 
-                    // 2. Envoyer un embed d'avertissement
                     const warningEmbed = new EmbedBuilder()
                         .setColor(Colors.Red)
                         .setAuthor({ name: "Anti-Link", iconURL: client.user.displayAvatarURL() })
@@ -41,19 +36,22 @@ module.exports = {
                     const msg = await message.channel.send({ embeds: [warningEmbed] });
                     setTimeout(() => msg.delete().catch(() => { }), 5000);
 
-                    // 3. AJOUTER LE WARN EN BDD
+                    // AJOUTER LE WARN
                     await prisma.warn.create({
                         data: {
                             guildId: message.guild.id,
                             userId: message.author.id,
                             userTag: message.author.tag,
-                            modId: client.user.id,     // C'est le bot qui warn
+                            modId: client.user.id,
                             modTag: client.user.tag,
                             reason: "Warn via antilink"
                         }
                     });
 
-                    return; // Stop ici pour ne pas déclencher l'antispam sur un message supprimé
+                    // --- VÉRIFICATION AUTO-SANCTION (NOUVEAU) ---
+                    await checkAutoSanction(message.guild, message.member, message.channel);
+
+                    return; 
                 } catch (err) {
                     console.error("Erreur Anti-Link:", err);
                 }
@@ -65,14 +63,12 @@ module.exports = {
         // ====================================================
         if (antiSpamConfig && antiSpamConfig.enabled && !isAdmin) {
 
-            // 1. VÉRIFICATION WHITELIST (Salons & Rôles)
             const ignoredChannels = antiSpamConfig.ignoredChannelIds || [];
             const ignoredRoles = antiSpamConfig.ignoredRoleIds || [];
 
-            if (ignoredChannels.includes(message.channel.id)) return; // Salon ignoré
-            if (message.member.roles.cache.hasAny(...ignoredRoles)) return; // Rôle ignoré
+            if (ignoredChannels.includes(message.channel.id)) return;
+            if (message.member.roles.cache.hasAny(...ignoredRoles)) return;
 
-            // 2. RÉCUPÉRATION DES PARAMÈTRES
             const LIMIT = antiSpamConfig.messageLimit || 5;
             const TIME = antiSpamConfig.timeWindow || 5000;
 
@@ -84,12 +80,11 @@ module.exports = {
                 msgCount++;
 
                 if (msgCount >= LIMIT) {
-                    // --- DÉTECTION SPAM ---
                     clearTimeout(timer);
                     spamMap.delete(message.author.id);
 
                     try {
-                        // Action : Timeout + Delete + Warn
+                        // Timeout + Delete
                         await message.member.timeout(5 * 60 * 1000, 'Guardian Anti-Spam').catch(() => { });
                         await message.channel.bulkDelete(LIMIT, true).catch(() => { });
 
@@ -101,7 +96,7 @@ module.exports = {
                         const msg = await message.channel.send({ embeds: [muteEmbed] });
                         setTimeout(() => msg.delete().catch(() => { }), 10000);
 
-                        // Enregistrement en BDD
+                        // Enregistrement Warn
                         await prisma.warn.create({
                             data: {
                                 guildId: message.guild.id,
@@ -113,6 +108,9 @@ module.exports = {
                             }
                         });
 
+                        // --- VÉRIFICATION AUTO-SANCTION (NOUVEAU) ---
+                        await checkAutoSanction(message.guild, message.member, message.channel);
+
                     } catch (err) {
                         console.error("Erreur Anti-Spam:", err);
                     }
@@ -121,7 +119,6 @@ module.exports = {
                     spamMap.set(message.author.id, userData);
                 }
             } else {
-                // Premier message
                 let fn = setTimeout(() => {
                     spamMap.delete(message.author.id);
                 }, TIME);
