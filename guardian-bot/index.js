@@ -10,13 +10,14 @@ require('dotenv').config();
 
 // --- CLIENT DISCORD ---
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers]
 });
 client.commands = new Collection();
 
 // --- SERVEUR EXPRESS ---
 const app = express();
 app.use(express.json());
+app.use(express.static('public'));
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173'
 }));
@@ -408,7 +409,11 @@ app.get('/api/guilds/:guildId/modules', async (req, res) => {
 
 app.post('/api/guilds/:guildId/modules/:moduleName', async (req, res) => {
     const { guildId, moduleName } = req.params;
-    const { enabled, channelId, ignoredChannelIds, ignoredRoleIds, messageLimit, timeWindow } = req.body;
+    const { 
+        enabled, channelId, 
+        ignoredChannelIds, ignoredRoleIds, messageLimit, timeWindow,
+        message, backgroundUrl, textColor, showAvatar, imageTitle
+    } = req.body;
 
     try {
         const modulesMap = {
@@ -421,12 +426,23 @@ app.post('/api/guilds/:guildId/modules/:moduleName', async (req, res) => {
         if (!model) return res.status(400).json({ error: "Module inconnu" });
 
         const data = {};
+        
+        // Champs communs
         if (enabled !== undefined) data.enabled = enabled;
         if (channelId !== undefined) data.channelId = channelId;
+
+        // Champs Anti-Spam
         if (ignoredChannelIds !== undefined) data.ignoredChannelIds = ignoredChannelIds;
         if (ignoredRoleIds !== undefined) data.ignoredRoleIds = ignoredRoleIds;
         if (messageLimit !== undefined) data.messageLimit = parseInt(messageLimit);
         if (timeWindow !== undefined) data.timeWindow = parseInt(timeWindow);
+
+        // Champs Welcome (NOUVEAU)
+        if (message !== undefined) data.message = message;
+        if (backgroundUrl !== undefined) data.backgroundUrl = backgroundUrl;
+        if (textColor !== undefined) data.textColor = textColor;
+        if (showAvatar !== undefined) data.showAvatar = showAvatar;
+        if (imageTitle !== undefined) data.imageTitle = imageTitle;
 
         await model.upsert({
             where: { guildId },

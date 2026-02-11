@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFlagsBits, MessageFlags, Colors } = require('discord.js');
-const prisma = require('../../utils/prisma'); // N'oublie pas d'importer prisma !
+const prisma = require('../../utils/prisma');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -33,7 +33,7 @@ module.exports = {
         if (subCmd === 'ticket') {
             const embed = new EmbedBuilder()
                 .setTitle('🛠️ Configuration des Tickets')
-                .setDescription('Comment souhaitez-vous installer le système de tickets ?')
+                .setDescription('```diff\n- /!\\ Rendez-vous sur le dashboard pour configurer le système de ticket de manière plus détaillée.```\nComment souhaitez-vous installer le système de tickets ?')
                 .setColor('Orange');
 
             const select = new StringSelectMenuBuilder()
@@ -44,7 +44,19 @@ module.exports = {
                     new StringSelectMenuOptionBuilder().setLabel('Choisir une catégorie').setValue('mode_manual').setEmoji('📂'),
                 );
 
-            await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select)], flags: MessageFlags.Ephemeral });
+            const dashboardLink = new ButtonBuilder()
+                .setStyle(ButtonStyle.Link)
+                .setLabel("Ouvrir le dashboard")
+                .setURL(process.env.FRONTEND_URL)
+
+            const rowSelect = new ActionRowBuilder().addComponents(select);
+            const rowButton = new ActionRowBuilder().addComponents(dashboardLink);
+
+            await interaction.reply({ 
+                embeds: [embed], 
+                components: [rowSelect, rowButton],
+                flags: MessageFlags.Ephemeral 
+            });
         }
 
         // --- ANTI-SPAM ---
@@ -55,7 +67,7 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setTitle('🛡️ Anti-Spam')
-                .setDescription(`État actuel : ${config.enabled ? '✅ **Activé**' : '❌ **Désactivé**'}\n\nProtège le serveur contre le flood et les messages répétés.`)
+                .setDescription(`\`\`\`diff\n- /!\\ Rendez-vous sur le dashboard pour configurer le système d'antispam de manière plus détaillée.\`\`\`\nÉtat actuel : ${config.enabled ? '✅ **Activé**' : '❌ **Désactivé**'}\n\nProtège le serveur contre le flood et les messages répétés.`)
                 .setColor(config.enabled ? Colors.Green : Colors.Grey);
 
             const btn = new ButtonBuilder()
@@ -63,7 +75,12 @@ module.exports = {
                 .setLabel(config.enabled ? 'Désactiver' : 'Activer')
                 .setStyle(config.enabled ? ButtonStyle.Danger : ButtonStyle.Success);
 
-            await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(btn)], flags: MessageFlags.Ephemeral });
+            const btnDashboard = new ButtonBuilder()
+                .setLabel('Ouvrir le dashboard')
+                .setStyle(ButtonStyle.Link)
+                .setURL(process.env.FRONTEND_URL)
+
+            await interaction.reply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(btn), new ActionRowBuilder().addComponents(btnDashboard)], flags: MessageFlags.Ephemeral });
         }
 
         // --- ANTI-LINK ---

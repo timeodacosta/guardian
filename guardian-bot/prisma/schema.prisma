@@ -58,16 +58,16 @@ model Warn {
 }
 
 model Ban {
-  id        String   @id @default(uuid())
-  guildId   String
-  userId    String
-  userTag   String
-  userAvatar String? // On stocke l'avatar au moment du ban pour l'affichage
-  modId     String
-  modTag    String
-  reason    String   @db.Text
-  createdAt DateTime @default(now())
-  guild     Guild    @relation(fields: [guildId], references: [id])
+  id         String   @id @default(uuid())
+  guildId    String
+  userId     String
+  userTag    String
+  userAvatar String?
+  modId      String
+  modTag     String
+  reason     String   @db.Text
+  createdAt  DateTime @default(now())
+  guild      Guild    @relation(fields: [guildId], references: [id])
 }
 
 model AntiSpamConfig {
@@ -75,12 +75,10 @@ model AntiSpamConfig {
   guildId          String  @unique
   guild            Guild   @relation(fields: [guildId], references: [id])
   enabled          Boolean @default(false)
-  
-  // NOUVEAUX CHAMPS
-  ignoredChannelIds Json?  // Liste des IDs des salons ignorés [cite: 1]
-  ignoredRoleIds    Json?  // Liste des IDs des rôles ignorés [cite: 2]
-  messageLimit      Int    @default(5)    // Nombre de messages autorisés [cite: 3]
-  timeWindow        Int    @default(5000) // Temps en ms (ex: 5000 = 5s) [cite: 4]
+  ignoredChannelIds Json?
+  ignoredRoleIds    Json?
+  messageLimit      Int    @default(5)
+  timeWindow        Int    @default(5000)
 }
 
 model AntiLinkConfig {
@@ -90,12 +88,21 @@ model AntiLinkConfig {
   enabled Boolean @default(false)
 }
 
+// --- MODIFICATION ICI ---
 model WelcomeConfig {
-  id        String  @id @default(uuid())
-  guildId   String  @unique
-  guild     Guild   @relation(fields: [guildId], references: [id])
-  enabled   Boolean @default(false)
-  channelId String?
+  id            String  @id @default(uuid())
+  guildId       String  @unique
+  guild         Guild   @relation(fields: [guildId], references: [id])
+  enabled       Boolean @default(false)
+  channelId     String?
+  
+  message       String? @db.Text
+  backgroundUrl String? @db.Text
+  textColor     String  @default("#FFFFFF")
+  showAvatar    Boolean @default(true)
+  
+  // NOUVEAU CHAMP
+  imageTitle    String  @default("BIENVENUE") // Le texte sur l'image (ex: "OHAYO !")
 }
 
 model LogsConfig {
