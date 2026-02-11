@@ -168,6 +168,7 @@ export default function ModerationView({
                                             value={warnConfig.autoBanCount}
                                             onChange={(e) => onConfigChange('autoBanCount', e.target.value)} // Utilise la nouvelle fonction
                                             min="0"
+                                            className="clean-input w-20 p-2 rounded text-sm text-center"
                                         />
                                         <span className="text-sm text-neutral-400">avertissements</span>
                                     </div>
