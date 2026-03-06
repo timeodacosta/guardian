@@ -17,7 +17,13 @@ client.commands = new Collection();
 // --- SERVEUR EXPRESS ---
 const app = express();
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('public', {
+    setHeaders: function (res, path, stat) {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET');
+      res.set('Access-Control-Allow-Headers', 'Content-Type');
+    }
+  }));
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173'
 }));

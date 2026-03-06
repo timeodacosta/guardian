@@ -95,14 +95,11 @@ model WelcomeConfig {
   guild         Guild   @relation(fields: [guildId], references: [id])
   enabled       Boolean @default(false)
   channelId     String?
-  
-  message       String? @db.Text
-  backgroundUrl String? @db.Text
-  textColor     String  @default("#FFFFFF")
-  showAvatar    Boolean @default(true)
-  
-  // NOUVEAU CHAMP
-  imageTitle    String  @default("BIENVENUE") // Le texte sur l'image (ex: "OHAYO !")
+  message       String? @db.Text 
+  backgroundUrl String? @db.Text 
+  textColor     String  @default("#FFFFFF") 
+  showAvatar    Boolean @default(true) 
+  imageTitle    String  @default("BIENVENUE")
 }
 
 model LogsConfig {
